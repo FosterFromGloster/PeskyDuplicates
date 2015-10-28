@@ -9,13 +9,13 @@ import pyechonest.config as config
 import pyechonest.song as song
 
 config.CODEGEN_BINARY_OVERRIDE = os.path.abspath("../echoprint-codegen")
-config.ECHO_NEST_API_KEY='IYM4QNEDVKB5X25EH '
+config.ECHO_NEST_API_KEY='UV2K0Q9COR1BIDERK' #Developer key replace with your own
 
 InfoCheckCount = 0;
 DuplicateCount = 0;
-Extensions = ('.MP3', '.WAV', '.MP4')
+Extensions = ('.MP3', '.WAV', '.MP4') #Supported Formats
 
-def md5TheFile(filename,trackList):
+def md5TheFile(filename,trackList):#Md5s the audio file. Ensures no duplicates are possible. Maintains a tracklist containing tuples
     with open(filename) as fileToMd5:
         m = hashlib.md5()
         chunk_sz = m.block_size * 128
@@ -23,24 +23,24 @@ def md5TheFile(filename,trackList):
         while data:
             m.update(data)
             data = fileToMd5.read(chunk_sz)
-        trackList.append((filename, m.hexdigest()))
+        trackList.append((filename, m.hexdigest()))#Tuples in the form of (filepath,MD5Hash)
 
-def is_sound_file(filename):
+def is_sound_file(filename):#Checks the validity of the audio extension takes in the filename
     extension = os.path.splitext(filename)[1].upper()
     return extension in Extensions
 
-def getDuplicates(trackList):
-    seen = set()
+def getDuplicates(trackList):#Goes through the tracklist looking for duplicates
+    seen = set()#Maintains a set
     duplicates = []
     for x in trackList:
         if x[1] in seen:#check if the hash is already in the list
             duplicates.append(x)#If seen add to duplicates
             global DuplicateCount
-            DuplicateCount = DuplicateCount+1
+            DuplicateCount = DuplicateCount+1#Duplicate count reported to user
         seen.add(x[1])
     return duplicates
     
-def deleteDuplicates(duplicates):
+def deleteDuplicates(duplicates):#Goes through list of duplciates deleting them based on filepath
     for extra in duplicates:
         try:
             os.remove(extra[0])
@@ -50,20 +50,21 @@ def deleteDuplicates(duplicates):
 def init(trackList):
     md5TheFile.trackList = trackList
 
-def checkForMetaData(filepath):
+def checkForMetaData(filepath):#Checks whether the audio file has associated meta data
     audiofile = eyed3.load(filepath)
-    if(audiofile.tag.artist == None or audiofile.tag.title == None):
+    if(audiofile.tag.artist == None or audiofile.tag.title == None):#This is where EyeD3 comes in handy
         aquireTrackInfo(filepath,audiofile)
         
-def aquireTrackInfo(filepath,loadedAudio):
+def aquireTrackInfo(filepath,loadedAudio):#If not meta data present then retrieve it. pyechonest comes in here
+    print('Retrieving...')
     pytrack = track.track_from_filename(filepath)
     setTrackInfo(loadedAudio,pytrack,filepath)
     
-def setTrackInfo(loadedAudio,pytrack,filepath):
+def setTrackInfo(loadedAudio,pytrack,filepath):#Update the audio file meta data 
     loadedAudio.tag.artist  = pytrack.artist if hasattr(pytrack, 'artist') else 'Unknown'
     loadedAudio.tag.title  = pytrack.title if hasattr(pytrack, 'title') else 'Unknown'
     loadedAudio.tag.save()
-    if(loadedAudio.tag.title != "Unknown"):
+    if(loadedAudio.tag.title != "Unknown"):#dont change the title if it failed to retrieve
         global InfoCheckCount
         InfoCheckCount = InfoCheckCount+1
         filenameAndExe = os.path.splitext(filepath)
@@ -75,7 +76,7 @@ def setTrackInfo(loadedAudio,pytrack,filepath):
             print("Failed to rename file")
  
  
-def checkForEmpties(path):
+def checkForEmpties(path):#Check for empty direcctories that may have resulted from deleteing duplicates
        for dirpath, dirnames, filenames in os.walk(path):
            files =0
            folders = 0
@@ -95,7 +96,7 @@ def main():
         
     trackList = list() 
     print('Processing...')
-    toSearchIn  = os.path.dirname(os.path.realpath(__file__))+"/TesterFolder"#Fix this
+    toSearchIn  = os.path.dirname(os.path.realpath(__file__))+"/Music"
     for dirpath, dirnames, filenames in os.walk(toSearchIn):
         for filename in filenames:
             filepath = os.path.join(dirpath,filename)
