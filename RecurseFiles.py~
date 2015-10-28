@@ -1,0 +1,70 @@
+import os.path
+import hashlib
+import sys
+import eyed3
+
+Extensions = ('.MP3', '.WAV', '.MP4')
+
+def md5TheFile(filename,trackList):
+    with open(filename) as fileToMd5:
+        m = hashlib.md5()
+        chunk_sz = m.block_size * 128
+        data = fileToMd5.read(chunk_sz)
+        while data:
+            m.update(data)
+            data = fileToMd5.read(chunk_sz)
+        trackList.append((filename, m.hexdigest()))
+
+def is_sound_file(filename):
+    extension = os.path.splitext(filename)[1].upper()
+    return extension in Extensions
+
+def getDuplicates(trackList):
+    seen = set()
+    duplicates = []
+    for x in trackList:
+        if x[1] in seen:#check if the hash is already in the list
+            duplicates.append(x)#If in duplicates add to the list
+        seen.add(x[1])
+    return duplicates
+    
+def deleteDuplicates(duplicates):
+    for extra in duplicates:
+        try:
+            os.remove(extra[0])
+        except OSError:
+            pass
+
+def init(trackList):
+    md5TheFile.trackList = trackList
+
+
+def main():
+    trackList = list() 
+    for dirpath, dirnames, filenames in os.walk(os.path.dirname(os.path.realpath(__file__))):
+        for filename in filenames:
+            filepath = os.path.join(dirpath,filename)
+            if(is_sound_file(filepath)):
+                md5TheFile(os.path.join(dirpath,filename),trackList)
+    duplicates = getDuplicates(trackList)
+    if(len(duplicates) > 0):
+        print("Found the following duplicates:")
+        for dup in duplicates:
+		audiofile = eyed3.load(dup[0])
+		print(audiofile.tag.artist)
+		print(audiofile.tag.album)
+		print(audiofile.tag.title)
+		#print(dup[0])
+       
+	ans = raw_input('Would you like to delete them? (Y/N)')
+        
+	if(ans == 'Y'):
+            deleteDuplicates(duplicates)
+	else:
+	    sys.exit(main())
+    else:
+        print("No duplicates to delete")
+        
+        
+if __name__ == '__main__':
+    sys.exit(main())

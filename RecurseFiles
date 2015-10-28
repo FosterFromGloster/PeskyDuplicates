@@ -1,0 +1,53 @@
+import multiprocessing
+import os.path
+import hashlib
+import sys
+
+
+VALID_EXTENSIONS = ('.JPG', '.GIF', '.JPEG')
+MAX_FILE_SZ = 1000000
+
+
+def md5_file(fname):
+    try:
+        with open(fname) as fo:
+            m = hashlib.md5()
+            chunk_sz = m.block_size * 128
+            data = fo.read(chunk_sz)
+            while data:
+                m.update(data)
+                data = fo.read(chunk_sz)
+        md5_file.queue.put((fname, m.hexdigest()))
+    except IOError:
+        md5_file.queue.put((fname, None))
+
+
+def is_valid_file(fname):
+    ext = os.path.splitext(fname)[1].upper()
+    fsz = os.path.getsize(fname)
+    return ext in VALID_EXTENSIONS and fsz <= MAX_FILE_SZ
+
+
+def init(queue):
+    md5_file.queue = queue
+
+
+def main():
+    # Holds tuple (fname, md5sum) / md5sum will be none if an IOError occurs
+    queue = multiprocessing.Queue()
+    pool = multiprocessing.Pool(None, init, [queue])
+
+    for dirpath, dirnames, filenames in os.walk(sys.argv[1]):
+        # Convert filenames to full paths...
+        full_path_fnames = map(lambda fn: os.path.join(dirpath, fn), 
+                               filenames)
+        full_path_fnames = filter(is_valid_file, full_path_fnames)
+        pool.map(md5_file, full_path_fnames)
+
+    # Dump the queue
+    while not queue.empty():
+        print queue.get()
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())
